@@ -37,13 +37,21 @@ def svm_loss_naive(W, X, y, reg):
             margin = scores[j] - correct_class_score + 1  # note delta = 1
             if margin > 0:
                 loss += margin
+                dW[:, j] += X[i]
+                dW[:, y[i]] -= X[i]
+
+        # if i == 0:
+            # print(dW[:5, :1])
+            # print(X[0])
 
     # Right now the loss is a sum over all training examples, but we want it
     # to be an average instead so we divide by num_train.
     loss /= num_train
+    dW /= num_train
 
     # Add regularization to the loss.
     loss += reg * np.sum(W * W)
+    dW += 2 * reg * W
 
     #############################################################################
     # TODO:                                                                     #
@@ -78,7 +86,19 @@ def svm_loss_vectorized(W, X, y, reg):
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    scores = X@W
+    correct_class_scores = scores[np.arange(len(y)), y]
+    correct_class_scores = np.array([correct_class_scores])
+    margins = scores - correct_class_scores.T
+    margins[np.arange(len(y)), y] = '-inf'
+
+    margins += 1
+
+    loss = np.sum(margins[margins > 0])
+
+    loss /= X.shape[0]
+
+    loss += reg * np.sum(W * W)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -93,7 +113,21 @@ def svm_loss_vectorized(W, X, y, reg):
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    dloss = 1
+    dloss /= X.shape[0]
+    dmargins = dloss * np.ones((X.shape[0], W.shape[1]))
+    dmargins[margins <= 0] = 0
+    dscores = dmargins
+    dcorrect_scores = np.sum(dmargins, axis = 1)
+    dscores[np.arange(len(y)), y] -= dcorrect_scores
+    dW = X.T @ dscores
+
+    dsum = reg
+    dWW = dsum * np.ones(W.shape)
+    dW += 2 * W * dWW
+    
+
+
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
