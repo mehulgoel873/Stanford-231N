@@ -33,9 +33,25 @@ def softmax_loss_naive(W, X, y, reg):
     # regularization!                                                           #
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+    for i in range (X.shape[0]):
+        scores = X[i].dot(W)
+        scores = np.exp(scores)
+        sum = 0
+        for j in range(W.shape[1]):
+            sum += scores[j]
+        loss += -np.log(scores[y[i]]) + np.log(sum)
 
-    pass
+        dW[:, y[i]] -= X[i]
+        for j in range(W.shape[1]):
+            dW[:, j] += ((1/sum) * (scores[j])) * X[i]
 
+
+    
+    loss /= X.shape[0]
+    dW /= X.shape[0]
+
+    loss += reg * np.sum(W * W)
+    dW += 2 * reg * W
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
     return loss, dW
@@ -58,6 +74,33 @@ def softmax_loss_vectorized(W, X, y, reg):
     # regularization!                                                           #
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+    scores = X @ W
+    scoresEXP = np.exp(scores)
+    sums = np.sum(scoresEXP, axis=1)
+    correct = scoresEXP[np.arange(len(y)), y]
+    correct_log = -np.log(correct)
+    sums_log = np.log(sums)
+    loss += np.sum(correct_log + sums_log)
+    loss /= X.shape[0]
+    loss += reg * np.sum(W * W)
+
+    dloss = 1
+    dloss /= X.shape[0]
+    dcorrect_log = dloss * np.ones(X.shape[0])
+    dsums_log = dloss * np.ones(X.shape[0])
+
+    dcorrect = (-1/correct)  * dcorrect_log
+    dsums = (1/sums) * dsums_log
+
+    dscoresEXP = np.zeros((X.shape[0], W.shape[1]))
+    dscoresEXP[np.arange(len(y)), y] += dcorrect
+    dscoresEXP = (np.ones_like(dscoresEXP) * dsums[:, np.newaxis]) + dscoresEXP
+
+
+    dscores = scoresEXP * dscoresEXP
+    dW = X.T @ dscores
+    dW += 2 * reg * W
+
 
     pass
 
