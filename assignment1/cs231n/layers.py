@@ -27,7 +27,8 @@ def affine_forward(x, w, b):
     # will need to reshape the input into rows.                               #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
+    temp = np.reshape(x, (x.shape[0], -1))
+    out = (temp @ w) + b.T
     pass
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -60,7 +61,10 @@ def affine_backward(dout, cache):
     # TODO: Implement the affine backward pass.                               #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
+    db = np.sum(dout, axis=0)
+    temp = np.reshape(x, (x.shape[0], -1))
+    dw = temp.T @ dout
+    dx = np.reshape(dout @ w.T, (x.shape))
     pass
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -86,7 +90,7 @@ def relu_forward(x):
     # TODO: Implement the ReLU forward pass.                                  #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
+    out = np.maximum(x, np.zeros_like(x))
     pass
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -113,7 +117,8 @@ def relu_backward(dout, cache):
     # TODO: Implement the ReLU backward pass.                                 #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
+    dx = dout
+    dx[x <= 0] = 0
     pass
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -767,13 +772,32 @@ def svm_loss(x, y):
     - dx: Gradient of the loss with respect to x
     """
     loss, dx = None, None
-
+  
     ###########################################################################
     # TODO: Copy over your solution from A1.
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    correct_class_scores = x[np.arange(len(y)), y]
+    correct_class_scores = np.array([correct_class_scores])
+    margins = x - correct_class_scores.T
+    margins[np.arange(len(y)), y] = '-inf'
+
+    margins += 1
+
+    loss = np.sum(margins[margins > 0])
+
+    loss /= x.shape[0]
+
+    dloss = 1
+    dloss /= x.shape[0]
+    dmargins = dloss * np.ones((x.shape))
+    dmargins[margins <= 0] = 0
+    dscores = dmargins
+    dcorrect_scores = np.sum(dmargins, axis = 1)
+    dscores[np.arange(len(y)), y] -= dcorrect_scores
+
+    dx = dscores
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -802,8 +826,29 @@ def softmax_loss(x, y):
     # TODO: Copy over your solution from A1.
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+    loss = 0
+    scoresEXP = np.exp(x)
+    sums = np.sum(scoresEXP, axis=1)
+    correct = scoresEXP[np.arange(len(y)), y]
+    correct_log = -np.log(correct)
+    sums_log = np.log(sums)
+    loss += np.sum(correct_log + sums_log)
+    loss /= x.shape[0]
 
-    pass
+    dloss = 1
+    dloss /= x.shape[0]
+    dcorrect_log = dloss * np.ones(x.shape[0])
+    dsums_log = dloss * np.ones(x.shape[0])
+
+    dcorrect = (-1/correct)  * dcorrect_log
+    dsums = (1/sums) * dsums_log
+
+    dscoresEXP = np.zeros((x.shape))
+    dscoresEXP[np.arange(len(y)), y] += dcorrect
+    dscoresEXP = (np.ones_like(dscoresEXP) * dsums[:, np.newaxis]) + dscoresEXP
+
+
+    dx = scoresEXP * dscoresEXP
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
