@@ -24,7 +24,8 @@ def affine_forward(x, w, b):
     # TODO: Copy over your solution from Assignment 1.                        #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
+    temp = np.reshape(x, (x.shape[0], -1))
+    out = (temp @ w) + b.T
     pass
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -56,7 +57,10 @@ def affine_backward(dout, cache):
     # TODO: Copy over your solution from Assignment 1.                        #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
+    db = np.sum(dout, axis=0)
+    temp = np.reshape(x, (x.shape[0], -1))
+    dw = temp.T @ dout
+    dx = np.reshape(dout @ w.T, (x.shape))
     pass
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -81,7 +85,7 @@ def relu_forward(x):
     # TODO: Copy over your solution from Assignment 1.                        #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
+    out = np.maximum(x, np.zeros_like(x))
     pass
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -107,7 +111,8 @@ def relu_backward(dout, cache):
     # TODO: Copy over your solution from Assignment 1.                        #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
+    dx = dout
+    dx[x <= 0] = 0
     pass
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -136,7 +141,29 @@ def softmax_loss(x, y):
     # TODO: Copy over your solution from Assignment 1.                        #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+    loss = 0
+    scoresEXP = np.exp(x)
+    sums = np.sum(scoresEXP, axis=1)
+    correct = scoresEXP[np.arange(len(y)), y]
+    correct_log = -np.log(correct)
+    sums_log = np.log(sums)
+    loss += np.sum(correct_log + sums_log)
+    loss /= x.shape[0]
 
+    dloss = 1
+    dloss /= x.shape[0]
+    dcorrect_log = dloss * np.ones(x.shape[0])
+    dsums_log = dloss * np.ones(x.shape[0])
+
+    dcorrect = (-1/correct)  * dcorrect_log
+    dsums = (1/sums) * dsums_log
+
+    dscoresEXP = np.zeros((x.shape))
+    dscoresEXP[np.arange(len(y)), y] += dcorrect
+    dscoresEXP = (np.ones_like(dscoresEXP) * dsums[:, np.newaxis]) + dscoresEXP
+
+
+    dx = scoresEXP * dscoresEXP
     pass
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****

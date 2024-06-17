@@ -73,7 +73,15 @@ class FullyConnectedNet(object):
         # parameters should be initialized to zeros.                               #
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
+        for i in range(self.num_layers - 1):
+            if i == 0:
+                self.params['W' + str(i + 1)] = np.random.randn(input_dim, hidden_dims[i]) * weight_scale
+                self.params['b' + str(i + 1)] = np.zeros(hidden_dims[i])
+            else:
+                self.params['W' + str(i + 1)] = np.random.randn(hidden_dims[i-1], hidden_dims[i]) * weight_scale
+                self.params['b' + str(i + 1)] = np.zeros(hidden_dims[i])
+        self.params['W' + str(self.num_layers)] = np.random.randn(hidden_dims[self.num_layers - 2], num_classes) * weight_scale
+        self.params['b' + str(self.num_layers)] = np.zeros(num_classes)
         pass
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -147,8 +155,14 @@ class FullyConnectedNet(object):
         # layer, etc.                                                              #
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-        pass
+        caches = []
+        out = X
+        for i in range(self.num_layers - 1):
+            out, cache_affine = affine_forward(out, self.params['W' + str(i + 1)], self.params['b' + str(i + 1)])
+            out, cache_relu = relu_forward(out)
+            caches.append((cache_affine, cache_relu))
+        out, cache_affine = affine_forward(out, self.params['W' + str(self.num_layers)], self.params['b' + str(self.num_layers)])
+        scores = out
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -174,8 +188,15 @@ class FullyConnectedNet(object):
         # of 0.5 to simplify the expression for the gradient.                      #
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-        pass
+        loss, dout = softmax_loss(scores, y)
+        dout, grads['W' + str(self.num_layers)], grads['b' + str(self.num_layers)] = affine_backward(dout, cache_affine)
+        for i  in range(self.num_layers - 1, 0, -1):
+            dout = relu_backward(dout, caches[i-1][1])
+            dout, grads['W' + str(i)], grads['b' + str(i)] = affine_backward(dout, caches[i-1][0])
+        
+        for i in range(1, self.num_layers + 1):
+            loss += 0.5 * self.reg * np.sum(self.params['W' + str(i)] * self.params['W' + str(i)])
+            grads['W' + str(i)] += self.reg * self.params['W' + str(i)]
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
