@@ -142,7 +142,7 @@ def softmax_loss(x, y):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     loss = 0
-    scoresEXP = np.exp(x)
+    scoresEXP = np.exp(x - np.median(x, axis=1, keepdims=True))
     sums = np.sum(scoresEXP, axis=1)
     correct = scoresEXP[np.arange(len(y)), y]
     correct_log = -np.log(correct)
@@ -155,6 +155,8 @@ def softmax_loss(x, y):
     dcorrect_log = dloss * np.ones(x.shape[0])
     dsums_log = dloss * np.ones(x.shape[0])
 
+    print(correct)
+    print()
     dcorrect = (-1/correct)  * dcorrect_log
     dsums = (1/sums) * dsums_log
 
@@ -164,6 +166,7 @@ def softmax_loss(x, y):
 
 
     dx = scoresEXP * dscoresEXP
+
     pass
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -404,7 +407,7 @@ def layernorm_forward(x, gamma, beta, ln_param):
     - out: of shape (N, D)
     - cache: A tuple of values needed in the backward pass
     """
-    out, cache = None, None
+    out, cache = None, {}
     eps = ln_param.get("eps", 1e-5)
     ###########################################################################
     # TODO: Implement the training-time forward pass for layer norm.          #
@@ -418,7 +421,17 @@ def layernorm_forward(x, gamma, beta, ln_param):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    mean = np.mean(x, axis=1,keepdims=True)
+    var = (1/(x.shape[1]) * np.sum((x-mean)**2, axis=1,keepdims=True))
+    norm = (1/np.sqrt(var + eps) * (x - mean))
+    out = gamma * norm + beta
+
+    cache["norm"] = norm
+    cache["gamma"] = gamma
+    cache["eps"] = eps
+    cache["var"] = var
+    cache["mean"] = mean
+    cache["x"] = x
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -451,8 +464,18 @@ def layernorm_backward(dout, cache):
     # still apply!                                                            #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-    pass
+    dgamma = np.sum(cache["norm"] * dout, axis=0)
+    dbeta = np.sum(dout, axis=0)
+    dnorm = cache["gamma"] * dout
+    # print(dnorm.shape)
+    dx = (dnorm * 1/np.sqrt(cache["var"] + cache["eps"]))
+    dmean = np.sum(-dnorm, axis=1, keepdims=True)  * 1/np.sqrt(cache["var"] + cache["eps"])
+    dvar = np.sum((cache["x"] - cache["mean"]) * dnorm, axis=1, keepdims=True)
+    dvar *= -0.5 * (cache["var"] + cache["eps"]) ** -1.5
+    dsquare = ((dvar/dnorm.shape[1]) * np.ones_like(dnorm))
+    dx += 2 * (cache["x"] - cache["mean"]) * dsquare
+    dmean += np.sum(2 * (cache["x"] - cache["mean"]) * dsquare, axis=1, keepdims=True)
+    dx += (np.ones_like(dnorm) * dmean)/dnorm.shape[1]
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -498,7 +521,8 @@ def dropout_forward(x, dropout_param):
         #######################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        mask = (np.random.rand(*x.shape) < p)/p
+        out = x * mask
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         #######################################################################
@@ -510,7 +534,7 @@ def dropout_forward(x, dropout_param):
         #######################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        out = np.copy(x)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         #######################################################################
@@ -540,7 +564,7 @@ def dropout_backward(dout, cache):
         #######################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        dx = dout * mask
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         #######################################################################
