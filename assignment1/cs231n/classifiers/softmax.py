@@ -75,29 +75,42 @@ def softmax_loss_vectorized(W, X, y, reg):
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     scores = X @ W
-    scoresEXP = np.exp(scores)
-    sums = np.sum(scoresEXP, axis=1)
-    correct = scoresEXP[np.arange(len(y)), y]
-    correct_log = -np.log(correct)
-    sums_log = np.log(sums)
-    loss += np.sum(correct_log + sums_log)
-    loss /= X.shape[0]
+    logit_maxes = np.max(scores, axis=1, keepdims=True)
+    norm_logits = scores - logit_maxes # subtract max for numerical stability
+    counts = np.exp(norm_logits)
+    counts_sum = np.sum(counts, axis=1, keepdims=True)
+    counts_sum_inv = counts_sum**-1 # if I use (1.0 / counts_sum) instead then I can't get backprop to be bit exact...
+    probs = counts * counts_sum_inv
+    logprobs = np.log(probs)
+    loss = -np.mean(logprobs[np.arange(len(y)), y])
     loss += reg * np.sum(W * W)
 
-    dloss = 1
-    dloss /= X.shape[0]
-    dcorrect_log = dloss * np.ones(X.shape[0])
-    dsums_log = dloss * np.ones(X.shape[0])
+    dlogprobs = np.zeros_like(logprobs)
+    dlogprobs[np.arange(len(y)), y] = -1.0/len(y)
+    dprobs = (1.0 / probs) * dlogprobs
+    dcounts_sum_inv = (counts * dprobs).sum(1, keepdims=True)
+    dcounts = counts_sum_inv * dprobs
+    dcounts_sum = (-counts_sum**-2) * dcounts_sum_inv
+    dcounts += np.ones_like(counts) * dcounts_sum
+    dnorm_logits = counts * dcounts
+    dscores = dnorm_logits.copy()
+    dlogit_maxes = np.sum(-dnorm_logits, axis=1, keepdims=True)
+    
+    
+    dscores += np.eye(scores.shape[1])[np.argmax(scores, axis=1)] * dlogit_maxes
 
-    dcorrect = (-1/correct)  * dcorrect_log
-    dsums = (1/sums) * dsums_log
+    # dloss = 1
+    # dloss /= X.shape[0]
+    # dcorrect_log = dloss * np.ones(X.shape[0])
+    # dsums_log = dloss * np.ones(X.shape[0])
 
-    dscoresEXP = np.zeros((X.shape[0], W.shape[1]))
-    dscoresEXP[np.arange(len(y)), y] += dcorrect
-    dscoresEXP = (np.ones_like(dscoresEXP) * dsums[:, np.newaxis]) + dscoresEXP
+    # dcorrect = (-1/correct)  * dcorrect_log
+    # dsums = (1/sums) * dsums_log
 
-
-    dscores = scoresEXP * dscoresEXP
+    # dscoresEXP = np.zeros((X.shape[0], W.shape[1]))
+    # dscoresEXP[np.arange(len(y)), y] += dcorrect
+    # dscoresEXP = (np.ones_like(dscoresEXP) * dsums[:, np.newaxis]) + dscoresEXP
+    # dscores = scoresEXP * dscoresEXP
     dW = X.T @ dscores
     dW += 2 * reg * W
 

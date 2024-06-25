@@ -142,30 +142,28 @@ def softmax_loss(x, y):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     loss = 0
-    scoresEXP = np.exp(x - np.median(x, axis=1, keepdims=True))
-    sums = np.sum(scoresEXP, axis=1)
-    correct = scoresEXP[np.arange(len(y)), y]
-    correct_log = -np.log(correct)
-    sums_log = np.log(sums)
-    loss += np.sum(correct_log + sums_log)
-    loss /= x.shape[0]
+    logit_maxes = np.max(x, axis=1, keepdims=True)
+    norm_logits = x - logit_maxes # subtract max for numerical stability
+    counts = np.exp(norm_logits)
+    counts_sum = np.sum(counts, axis=1, keepdims=True)
+    counts_sum_inv = counts_sum**-1 # if I use (1.0 / counts_sum) instead then I can't get backprop to be bit exact...
+    probs = counts * counts_sum_inv
+    logprobs = np.log(probs)
+    loss = -np.mean(logprobs[np.arange(len(y)), y])
 
-    dloss = 1
-    dloss /= x.shape[0]
-    dcorrect_log = dloss * np.ones(x.shape[0])
-    dsums_log = dloss * np.ones(x.shape[0])
-
-    print(correct)
-    print()
-    dcorrect = (-1/correct)  * dcorrect_log
-    dsums = (1/sums) * dsums_log
-
-    dscoresEXP = np.zeros((x.shape))
-    dscoresEXP[np.arange(len(y)), y] += dcorrect
-    dscoresEXP = (np.ones_like(dscoresEXP) * dsums[:, np.newaxis]) + dscoresEXP
-
-
-    dx = scoresEXP * dscoresEXP
+    dlogprobs = np.zeros_like(logprobs)
+    dlogprobs[np.arange(len(y)), y] = -1.0/len(y)
+    dprobs = (1.0 / probs) * dlogprobs
+    dcounts_sum_inv = (counts * dprobs).sum(1, keepdims=True)
+    dcounts = counts_sum_inv * dprobs
+    dcounts_sum = (-counts_sum**-2) * dcounts_sum_inv
+    dcounts += np.ones_like(counts) * dcounts_sum
+    dnorm_logits = counts * dcounts
+    dx = dnorm_logits.copy()
+    dlogit_maxes = np.sum(-dnorm_logits, axis=1, keepdims=True)
+    
+    
+    dx += np.eye(x.shape[1])[np.argmax(x, axis=1)] * dlogit_maxes
 
     pass
 
