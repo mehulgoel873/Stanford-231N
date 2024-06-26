@@ -158,10 +158,13 @@ def adam(w, dw, config=None):
 
     m = config["m"]
     v = config["v"]
+    config["t"] += 1
 
     m = config["beta1"]*m + (1-config["beta1"]) * dw
+    mt = m / (1-config["beta1"]**config["t"])
     v = config["beta2"]*v + (1-config["beta2"]) * (dw * dw)
-    next_w =  w - config["learning_rate"] * m / (np.sqrt(v) + config["epsilon"])
+    vt = v / (1-config["beta2"]**config["t"])
+    next_w =  w - config["learning_rate"] * mt / (np.sqrt(vt) + config["epsilon"])
 
     config["m"] = m
     config["v"] = v
