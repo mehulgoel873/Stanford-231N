@@ -72,7 +72,8 @@ def rnn_step_forward(x, prev_h, Wx, Wh, b):
     # and cache variables respectively.                                          #
     ##############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
+    next_h = np.tanh(prev_h @ Wh + x @ Wx + b)
+    cache = (prev_h, Wh, x, Wx, b)
     pass
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -104,8 +105,17 @@ def rnn_step_backward(dnext_h, cache):
     # of the output value from tanh.                                             #
     ##############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+    prev_h, Wh, x, Wx, b = cache
+    dx, dprev_h, dWx, dWh = np.zeros_like(x), np.zeros_like(prev_h), np.zeros_like(Wx), np.zeros_like(Wh)
+    dtan = (1 - (np.tanh(prev_h @ Wh + x @ Wx + b) ** 2)) * dnext_h
+    db = np.sum(dtan, axis=0)
+    
+    dx = dtan @ Wx.T
+    dWx = x.T @ dtan
 
-    pass
+    dprev_h = dtan @ Wh.T
+    dWh = prev_h.T @ dtan
+
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
@@ -139,8 +149,18 @@ def rnn_forward(x, h0, Wx, Wh, b):
     # above. You can use a for loop to help compute the forward pass.            #
     ##############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-    pass
+    N, T, D = x.shape
+    x = np.transpose(x, (1, 0, 2))
+    h = np.zeros((T, N, b.shape[0]))
+    prev_h = h0
+    cache = []
+    for i in range(T):
+        x_t = x[i, :, :]
+        h_t, cache_t = rnn_step_forward(x_t, prev_h, Wx, Wh, b)
+        cache.append(cache_t)
+        h[i, :, :] = h_t
+        prev_h = h_t
+    h = np.transpose(h, (1, 0, 2))
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
@@ -174,7 +194,41 @@ def rnn_backward(dh, cache):
     # defined above. You can use a for loop to help compute the backward pass.   #
     ##############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+    
+    N, T, H = dh.shape
+    D = cache[0][2].shape[1]
 
+    dx = np.zeros((T, N, D))
+    dh0 = np.zeros((N, H))
+    dWx = np.zeros((D, H))
+    dWh = np.zeros((H, H))
+    db = np.zeros((H,))
+
+    dh = np.transpose(dh, (1, 0, 2))
+    dh_prev = np.zeros((N, H))
+
+    # for t in reversed(range(T)):
+    #     dh_current = dh[t] + dh_prev
+    #     dx_t, dh_prev, dWx_t, dWh_t, db_t = rnn_step_backward(
+    #         dh_current, cache[t])
+    #     dx[t] += dx_t
+    #     dh0 = dh_prev
+    #     dWx += dWx_t
+    #     dWh += dWh_t
+    #     db += db_t
+
+    for i in reversed(range(T)):
+        dh_t = dh[i] + dh_prev
+        dx_t, dh_prev, dWx_t, dWh_t, db_t = rnn_step_backward(dh_t, cache[i])
+
+        dh0 = dh_prev
+        dx[i] += dx_t
+        dWx += dWx_t
+        dWh += dWh_t
+        db += db_t
+
+
+    dx = np.transpose(dx, (1, 0, 2))
     pass
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -207,7 +261,8 @@ def word_embedding_forward(x, W):
     # HINT: This can be done in one line using NumPy's array indexing.           #
     ##############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
+    out = W[x, :]
+    cache = (x, W)
     pass
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -241,8 +296,14 @@ def word_embedding_backward(dout, cache):
     # HINT: Look up the function np.add.at                                       #
     ##############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+    x, W = cache
+    dW = np.zeros_like(W)
 
-    pass
+
+    N, T, D = dout.shape
+    V = dW.shape[0]
+    np.add.at(dW, np.reshape(x, -1), np.reshape(dout, (-1, D)))
+    
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
