@@ -148,7 +148,17 @@ class CaptioningRNN:
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        h0, cache_1 = affine_forward(features, W_proj, b_proj)
+        embed, cache_2 = word_embedding_forward(captions_in, W_embed)
+        h, cache_3 = rnn_forward(embed, h0, Wx, Wh, b)
+        scores, cache_4 = temporal_affine_forward(h, W_vocab, b_vocab)
+
+        loss, dx = temporal_softmax_loss(scores, captions_out, mask)
+
+        dx, grads['W_vocab'], grads['b_vocab'] = temporal_affine_backward(dx, cache_4)
+        dembed, dh0, grads['Wx'], grads['Wh'], grads['b'] = rnn_backward(dx, cache_3)
+        grads['W_embed'] = word_embedding_backward(dembed, cache_2)
+        dx, grads['W_proj'], grads['b_proj'] = affine_backward(dh0, cache_1)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -215,9 +225,14 @@ class CaptioningRNN:
         # you are using an LSTM, initialize the first cell state to zeros.        #
         ###########################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-        pass
-
+        h, _ = affine_forward(features, W_proj, b_proj)
+        prevWord = self._start * np.ones((N,1), dtype=np.int64)
+        for i in range(max_length):
+            embed, _ = word_embedding_forward(prevWord, W_embed)
+            h, _ = rnn_step_forward(embed.reshape(N, -1), h, Wx, Wh, b) 
+            scores, _ = temporal_affine_forward(h.reshape(N, 1, -1), W_vocab, b_vocab)
+            prevWord = np.argmax(scores, axis=2).reshape(-1)
+            captions[:, i] = prevWord
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
         #                             END OF YOUR CODE                             #
