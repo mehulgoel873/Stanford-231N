@@ -164,8 +164,19 @@ class MultiHeadAttention(nn.Module):
         #     function masked_fill may come in handy.                              #
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+        q = self.query(query)
+        k = self.key(key)
 
-        pass
+        wei = q @ k.transpose(-2, -1) * (self.head_dim ** -0.5)
+        if attn_mask is not None: 
+            wei = wei.masked_fill(attn_mask[:, :] == 0, float('-inf'))
+        print(wei)
+        wei = nn.functional.softmax(wei, dim=-1)
+        wei = self.attn_drop(wei)
+        v = self.value(value)
+        out = wei @ v
+
+        output = self.proj(out)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
