@@ -120,9 +120,9 @@ class MultiHeadAttention(nn.Module):
         
         self.attn_drop = nn.Dropout(dropout)
 
-        self.n_head = num_heads
+        self.H = num_heads
         self.emd_dim = embed_dim
-        self.head_dim = self.emd_dim // self.n_head
+        self.head_dim = self.emd_dim // self.H
 
     def forward(self, query, key, value, attn_mask=None):
         """
@@ -164,19 +164,18 @@ class MultiHeadAttention(nn.Module):
         #     function masked_fill may come in handy.                              #
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-        q = self.query(query)
-        k = self.key(key)
 
-        wei = q @ k.transpose(-2, -1) * (self.head_dim ** -0.5)
-        if attn_mask is not None: 
-            wei = wei.masked_fill(attn_mask[:, :] == 0, float('-inf'))
-        print(wei)
-        wei = nn.functional.softmax(wei, dim=-1)
-        wei = self.attn_drop(wei)
-        v = self.value(value)
-        out = wei @ v
-
-        output = self.proj(out)
+        q = self.query(query).reshape(N, S, self.H, E//self.H).transpose(1,2) # (N, H, S, D/H)
+        k = self.key(key).reshape(N, T, self.H, E//self.H).transpose(1,2) # (N, H, T, D/H)
+        v = self.value(value).reshape(N, T, self.H, E//self.H).transpose(1,2) # (N, H, T, D/H)
+        e = torch.matmul(q , k.transpose(2, 3)) / math.sqrt(E//self.H) # (N, H, S, T)
+        if attn_mask is not None:
+            e = e.masked_fill(attn_mask == 0, -float('inf'))
+        a = F.softmax(e, -1) # attention probs
+        output = self.attn_drop(a) # dropout some probs
+        output = torch.matmul(output, v) # (N, H, S, D/H)
+        output = output.transpose(1, 2).reshape(N, S, -1)  # (N, S, D)
+        output = self.proj(output)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
